@@ -1,0 +1,28 @@
+version: "3"
+
+services:
+  node3:
+    image: blockchain
+    container_name: third
+    network_mode: host
+    build: . 
+    command: python blockchain.py --name third
+    depends_on:
+      - node1
+
+  node2:
+    image: blockchain
+    container_name: second
+    network_mode: host
+    build: .  
+    command: python blockchain.py --name second
+    depends_on:
+      - node1
+
+  node1:
+    image: blockchain
+    container_name: first
+    network_mode: host
+    build: . 
+    command: python blockchain.py --name first --genesis True
+    
