@@ -1,9 +1,12 @@
 import hashlib
 import json
+import logging
 import time
 import random
 from urllib.parse import urlparse
+import threading
 import requests
+from flask import Flask, jsonify
 
 
 NODES_PORTS = {
@@ -109,4 +112,65 @@ class Blockchain:
         guess = f"{last_proof} {proof} {last_hash}".encode()
         guess_hash = hashlib.sha256(guess).hexdigest()
         return guess_hash[:5] == "00000"
+
+
+def main(args):
+    app = Flask(__name__)
+    blockchain = Blockchain(args.genesis)
+    logging.basicConfig(level=logging.INFO)
+    logging.info(f"[{args.name} node initialized]")
+    log = logging.getLogger('werkzeug')
+    log.setLevel(logging.ERROR)
+    time.sleep(1)
+
+    def mine():
+        while True:
+            last_block = blockchain.last_block
+            proof = blockchain.proof_of_work(last_block)
+            previous_hash = blockchain.hash(last_block)
+            new_block = blockchain.new_block(proof, previous_hash)
+            blockchain.resolve_conflicts()
+            if not blockchain.is_replaced():
+                blockchain.add_block(new_block)
+                logging.info(f"[{args.name} node] generated: {new_block}")
+            else:
+                logging.info(f"[{args.name} node] replaced")
+
+            time.sleep(1)
+
+    @app.route("/chain", methods=["GET"])
+    def full_chain():
+        response = {
+            "chain": blockchain.chain,
+            "length": len(blockchain.chain),
+        }
+        return jsonify(response), 200
+
+    for node, port in NODES_PORTS.items():
+        if node != args.name:
+            blockchain.register_node(f"http://{args.host}:{port}/")
     
+    server = threading.Thread(target=app.run, args=(args.host, NODES_PORTS[args.name]))
+    server.setDaemon(True)
+    time.sleep(1)
+    blockchain.resolve_conflicts()
+    generator = threading.Thread(target=mine)
+    server.start()
+    generator.start()
+
+
+if __name__ == "__main__":
+    from argparse import ArgumentParser
+
+    parser = ArgumentParser()
+    parser.add_argument(
+        "--genesis", dest="genesis", default=False, type=bool, help="port to listen on"
+    )
+    parser.add_argument(
+        "--name", dest="name", default="", type=str, help="name of node"
+    )
+    parser.add_argument(
+        "--host", dest="host", default="localhost", type=str, help="host"
+    )
+    args = parser.parse_args()
+    main(args)
