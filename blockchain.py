@@ -10,9 +10,9 @@ from flask import Flask, jsonify
 
 
 NODES_PORTS = {
-    "first": 5001,
-    "second": 5002,
-    "third": 5003,
+    "node1": 5001,
+    "node2": 5002,
+    "node3": 5003,
 }
 
 
@@ -148,9 +148,9 @@ def main(args):
 
     for node, port in NODES_PORTS.items():
         if node != args.name:
-            blockchain.register_node(f"http://{args.host}:{port}/")
+            blockchain.register_node(f"http://{node}:{port}/")
     
-    server = threading.Thread(target=app.run, args=(args.host, NODES_PORTS[args.name]))
+    server = threading.Thread(target=app.run, args=(args.name, NODES_PORTS[args.name]))
     server.setDaemon(True)
     time.sleep(1)
     blockchain.resolve_conflicts()
@@ -168,9 +168,6 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--name", dest="name", default="", type=str, help="name of node"
-    )
-    parser.add_argument(
-        "--host", dest="host", default="localhost", type=str, help="host"
     )
     args = parser.parse_args()
     main(args)
